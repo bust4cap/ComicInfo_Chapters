@@ -4,14 +4,17 @@ def count_files(path):
   """Counts image files, tracks chapters, and extracts volume numbers."""
   chapter_number = None
   image_count = 0
+  removal_string = " (web)"
   folder_name, volume_number = extract_version(os.path.basename(path))
   for root, _, files in os.walk(path):
     for file in files:
       if not file.startswith('.'):  # Ignore hidden files
         extension = file.split('.')[-1].lower()
-        if extension in ['jpg', 'jpeg', 'png']:  # Check for image extensions
+        if extension in ['jpg', 'jpeg', 'png', 'webp']:  # Check for image extensions
           image_count += 1
           c_number = find_number(file)
+          if c_number and removal_string in c_number:
+            c_number = c_number.replace(removal_string, "")
           if c_number and c_number != chapter_number:
             chapter_number = c_number
             yield f"Bookmark=\"Chapter {chapter_number}\" Image=\"{image_count - 1}\""
@@ -19,22 +22,16 @@ def count_files(path):
             yield f"Image=\"{image_count - 1}\""
 
 def find_number(filename):
-  """Extracts the chapter number (3/4 digits) following either " - c" or " - d" from the filename."""
+  """Extracts the chapter number following either " - c" or " - d" from the filename."""
   identifiers = ["c", "d"]
   for identifier in identifiers:
     identifier_index = filename.rfind(f" - {identifier}")
-    if identifier == "c":
-        if identifier_index != -1 and len(filename) >= identifier_index + 7:
-            try:
-                return int(filename[identifier_index + 4:identifier_index + 7])
-            except ValueError:
-                pass  # Ignore non-numeric characters after identifier
-    elif identifier == "d":
-        if identifier_index != -1 and len(filename) >= identifier_index + 8:
-            try:
-                return int(filename[identifier_index + 4:identifier_index + 8])
-            except ValueError:
-                pass  # Ignore non-numeric characters after identifier
+    page_index = filename.find(" - p")
+    if identifier_index != -1 and page_index != -1:
+        try:
+            return filename[identifier_index + 4:page_index]
+        except ValueError:
+            pass
   return None
 
 def extract_version(folder_name):
